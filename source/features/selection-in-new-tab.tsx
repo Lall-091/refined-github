@@ -10,7 +10,7 @@ function openInNewTab(): void {
 		return;
 	}
 
-	void browser.runtime.sendMessage({
+	void chrome.runtime.sendMessage({
 		openUrls: [selected.href],
 	});
 
@@ -19,7 +19,7 @@ function openInNewTab(): void {
 }
 
 function init(signal: AbortSignal): void {
-	registerHotkey('O', openInNewTab, {signal});
+	registerHotkey('Shift+O', openInNewTab, {signal});
 }
 
 void features.add(import.meta.url, {

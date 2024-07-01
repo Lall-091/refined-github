@@ -23,16 +23,16 @@ export const standaloneGistLinkInMarkdown_ = [
 export const repoUnderlineNavDropdownUl = '.js-responsive-underlinenav action-menu ul';
 export const repoUnderlineNavDropdownUl_ = [
 	// Added via JS :(
-	// TOOD: Use Puppeteer?
-	[0, 'https://github.com/refined-github/refined-github'],
-	[0, 'https://github.com/refined-github/refined-github/releases'],
+	// TODO: Use Puppeteer?
+	[1, 'https://github.com/refined-github/refined-github'],
+	[1, 'https://github.com/refined-github/refined-github/releases'],
 ] satisfies UrlMatch[];
 
 export const branchSelector = '[data-hotkey="w"]';
 export const branchSelector_ = [
 	[1, 'https://github.com/refined-github/refined-github'],
 	// Added via JS :(
-	// TOOD: Use Puppeteer?
+	// TODO: Use Puppeteer?
 	[0, 'https://github.com/refined-github/refined-github/blob/main/readme.md'],
 	[0, 'https://github.com/refined-github/refined-github/blame/main/readme.md'],
 	[0, 'https://github.com/refined-github/refined-github/tree/main/source'],
@@ -93,6 +93,11 @@ export const actionsTab_ = [
 	[1, 'https://github.com/refined-github/sandbox'],
 ] satisfies UrlMatch[];
 
+export const paginationButtonSelector = '.ajax-pagination-form button.ajax-pagination-btn';
+export const paginationButtonSelector_ = [
+	[2, 'https://github.com/refined-github/sandbox/pull/10'],
+] satisfies UrlMatch[];
+
 export const codeSearchHeader = css`
 	div:has(
 		> [aria-label^="Collapse "],
@@ -102,4 +107,23 @@ export const codeSearchHeader = css`
 export const codeSearchHeader_ = [
 	// Search not available when logged out :(
 	[0, 'https://github.com/search?q=repo%3Arefined-github%2Frefined-github&type=code'],
+] satisfies UrlMatch[];
+
+export const linksToConversationLists = `
+	a:is(
+		[href*="/issues"],
+		[href*="/pulls"],
+		[href*="/projects"],
+		[href*="/labels/"]
+	):not(
+		[href*="sort%3A"],
+		[href*="page="],
+		.issues-reset-query,
+		.pagination *,
+		.table-list-header-toggle *
+	)
+`;
+export const linksToConversationLists_ = [
+	[6, 'https://github.com/fregante/iphone-inline-video/issues?q=cool+is%3Aissue+is%3Aopen+'],
+	[26, 'https://github.com/fregante/iphone-inline-video/issues?q=cool+is%3Aissue+is%3Aclosed'],
 ] satisfies UrlMatch[];

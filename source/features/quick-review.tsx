@@ -1,6 +1,6 @@
 import React from 'dom-chef';
 import delay from 'delay';
-import {$} from 'select-dom';
+import {expectElement as $} from 'select-dom';
 import elementReady from 'element-ready';
 import * as pageDetect from 'github-url-detection';
 import delegate, {DelegateEvent} from 'delegate-it';
@@ -9,7 +9,9 @@ import api from '../github-helpers/api.js';
 import features from '../feature-manager.js';
 import observe from '../helpers/selector-observer.js';
 import showToast from '../github-helpers/toast.js';
-import {getConversationNumber, getUsername} from '../github-helpers/index.js';
+import {
+	getConversationNumber, getUsername, scrollIntoViewIfNeeded, triggerConversationUpdate,
+} from '../github-helpers/index.js';
 import {randomArrayItem} from '../helpers/math.js';
 import {getToken} from '../github-helpers/github-token.js';
 
@@ -30,6 +32,10 @@ async function quickApprove(event: DelegateEvent<MouseEvent>): Promise<void> {
 		message: 'Approving…',
 		doneMessage: `${randomArrayItem(emojis)} Approved`,
 	});
+
+	// Update timeline and scroll to bottom so the new review appears in view
+	scrollIntoViewIfNeeded($('#partial-timeline'));
+	triggerConversationUpdate();
 }
 
 async function addSidebarReviewButton(reviewersSection: Element): Promise<void> {
@@ -49,7 +55,7 @@ async function addSidebarReviewButton(reviewersSection: Element): Promise<void> 
 
 	// Can't approve own PRs and closed PRs
 	// API required for this action
-	if (getUsername() === $('.author')!.textContent || pageDetect.isClosedPR() || !(await getToken())) {
+	if (getUsername() === $('.author').textContent || pageDetect.isClosedPR() || !(await getToken())) {
 		return;
 	}
 
@@ -70,14 +76,14 @@ async function initSidebarReviewButton(signal: AbortSignal): Promise<void> {
 	delegate('.rgh-quick-approve', 'click', quickApprove, {signal});
 }
 
-function focusReviewTextarea({delegateTarget}: DelegateEvent<Event, HTMLDetailsElement>): void {
-	if (delegateTarget.open) {
-		$('textarea', delegateTarget)!.focus();
+function focusReviewTextarea(event: DelegateEvent<Event, HTMLElement>): void {
+	if ('newState' in event && event.newState === 'open') {
+		$('textarea', event.delegateTarget).focus();
 	}
 }
 
 async function initReviewButtonEnhancements(signal: AbortSignal): Promise<void> {
-	delegate('.js-reviews-container > details', 'toggle', focusReviewTextarea, {capture: true, signal});
+	delegate('#review-changes-modal', 'toggle', focusReviewTextarea, {capture: true, signal});
 
 	const reviewDropdownButton = await elementReady('.js-reviews-toggle');
 	if (reviewDropdownButton) {

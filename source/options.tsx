@@ -8,7 +8,7 @@ import prettyBytes from 'pretty-bytes';
 import {assertError} from 'ts-extras';
 import {enableTabToIndent} from 'indent-textarea';
 import delegate, {DelegateEvent} from 'delegate-it';
-import {isChrome, isFirefox} from 'webext-detect-page';
+import {isChrome, isFirefox} from 'webext-detect';
 import {SyncedForm} from 'webext-options-sync-per-domain';
 
 import featureLink from './helpers/feature-link.js';
@@ -22,6 +22,7 @@ import isDevelopmentVersion from './helpers/is-development-version.js';
 import {doesBrowserActionOpenOptions} from './helpers/feature-utils.js';
 import {state as bisectState} from './helpers/bisect.js';
 import {parseTokenScopes} from './github-helpers/github-token.js';
+import {scrollIntoViewIfNeeded} from './github-helpers/index.js';
 
 type TokenType = 'classic' | 'fine_grained';
 
@@ -34,7 +35,7 @@ type Status = {
 	scopes?: string[];
 };
 
-const {version} = browser.runtime.getManifest();
+const {version} = chrome.runtime.getManifest();
 
 function reportStatus({tokenType, error, text, scopes}: Status): void {
 	const tokenStatus = $('#validation')!;
@@ -59,13 +60,32 @@ function reportStatus({tokenType, error, text, scopes}: Status): void {
 	}
 }
 
-async function getTokenScopes(personalToken: string): Promise<string[]> {
+function getApiUrl(): string {
 	const tokenLink = $('a#personal-token-link')!;
-	const url = tokenLink.host === 'github.com'
-		? 'https://api.github.com/'
-		: `${tokenLink.origin}/api/v3/`;
+	return tokenLink.host === 'github.com'
+		? 'https://api.github.com'
+		: `${tokenLink.origin}/api/v3`;
+}
 
-	const response = await fetch(url, {
+async function getNameFromToken(token: string): Promise<string> {
+	const response = await fetch(
+		getApiUrl() + '/user', {
+			headers: {
+				Authorization: `Bearer ${token}`,
+			},
+		},
+	);
+
+	const details = await response.json();
+	if (!response.ok) {
+		throw new Error(details.message);
+	}
+
+	return details.login;
+}
+
+async function getTokenScopes(personalToken: string): Promise<string[]> {
+	const response = await fetch(getApiUrl(), {
 		cache: 'no-store',
 		headers: {
 			'User-Agent': 'Refined GitHub',
@@ -87,7 +107,7 @@ function expandTokenSection(): void {
 }
 
 async function updateStorageUsage(area: 'sync' | 'local'): Promise<void> {
-	const storage = browser.storage[area];
+	const storage = chrome.storage[area];
 	const used = await getStorageBytesInUse(area);
 	const available = storage.QUOTA_BYTES - used;
 	for (const output of $$(`.storage-${area}`)) {
@@ -114,9 +134,14 @@ async function validateToken(): Promise<void> {
 	reportStatus({text: 'Validating…', tokenType});
 
 	try {
+		const [scopes, user] = await Promise.all([
+			getTokenScopes(tokenField.value),
+			getNameFromToken(tokenField.value),
+		]);
 		reportStatus({
 			tokenType,
-			scopes: await getTokenScopes(tokenField.value),
+			text: `👤 @${user}`,
+			scopes,
 		});
 	} catch (error) {
 		assertError(error);
@@ -138,8 +163,8 @@ function moveDisabledFeaturesToTop(): void {
 function buildFeatureCheckbox({id, description, screenshot}: FeatureMeta): HTMLElement {
 	return (
 		<div className="feature" data-text={`${id} ${description}`.toLowerCase()}>
-			<input type="checkbox" name={`feature:${id}`} id={id} className="feature-checkbox"/>
 			<div className="info">
+				<input type="checkbox" name={`feature:${id}`} id={id} className="feature-checkbox"/>
 				<label className="feature-name" htmlFor={id}>{id}</label>
 				{' '}
 				<a href={featureLink(id)} className="feature-link">
@@ -211,8 +236,7 @@ function featuresFilterHandler(event: Event): void {
 }
 
 function focusFirstField({delegateTarget: section}: DelegateEvent<Event, HTMLDetailsElement>): void {
-	// @ts-expect-error No Firefox support https://developer.mozilla.org/en-US/docs/Web/API/Element/scrollIntoViewIfNeeded
-	(section.scrollIntoViewIfNeeded ?? section.scrollIntoView).call(section);
+	scrollIntoViewIfNeeded(section);
 	if (section.open) {
 		const field = $('input, textarea', section);
 		if (field) {
@@ -333,15 +357,15 @@ function addEventListeners(): void {
 	});
 
 	// Refresh page when permissions are changed (because the dropdown selector needs to be regenerated)
-	browser.permissions.onRemoved.addListener(() => {
+	chrome.permissions.onRemoved.addListener(() => {
 		location.reload();
 	});
-	browser.permissions.onAdded.addListener(() => {
+	chrome.permissions.onAdded.addListener(() => {
 		location.reload();
 	});
 
 	// Update storage usage info
-	browser.storage.onChanged.addListener((_, areaName) => {
+	chrome.storage.onChanged.addListener((_, areaName) => {
 		void updateStorageUsage(areaName as 'sync' | 'local');
 	});
 

@@ -1,11 +1,10 @@
-import './locked-issue.css';
 import React from 'react';
 import LockIcon from 'octicons-plain-react/Lock';
 import * as pageDetect from 'github-url-detection';
+import elementReady from 'element-ready';
 
 import features from '../feature-manager.js';
 import observe from '../helpers/selector-observer.js';
-import {isHasSelectorSupported} from '../helpers/select-has.js';
 
 function LockedIndicator(): JSX.Element {
 	return (
@@ -17,27 +16,29 @@ function LockedIndicator(): JSX.Element {
 }
 
 function addLock(element: HTMLElement): void {
+	const classes = (element.closest('.gh-header-sticky') ? 'mr-2 ' : '') + 'mb-2 rgh-locked-issue';
 	element.after(
-		<LockedIndicator className="mb-2 rgh-locked-issue"/>,
+		<LockedIndicator className={classes}/>,
 	);
 }
 
-function addStickyLock(element: HTMLElement): void {
-	element.after(
-		<LockedIndicator className="mr-2 mb-2 rgh-locked-issue"/>,
-	);
-}
-
-function init(signal: AbortSignal): void {
+async function init(signal: AbortSignal): Promise<void | false> {
 	// If reactions-menu exists, then .js-pick-reaction is the second child
-	// Logged out users never have the menu, so they should be excluded
-	observe('.logged-in:has(.js-pick-reaction:first-child) .gh-header-meta > :first-child', addLock, {signal});
-	observe('.logged-in:has(.js-pick-reaction:first-child) .gh-header-sticky .flex-row > :first-child', addStickyLock, {signal});
+	const reactions = await elementReady('.js-pick-reaction');
+	if (!reactions?.matches(':first-child')) {
+		return false;
+	}
+
+	observe([
+		'.gh-header-meta > :first-child', // Issue title
+		'.gh-header-sticky .flex-row > :first-child', // Sticky issue title
+	], addLock, {signal});
 }
 
 void features.add(import.meta.url, {
 	asLongAs: [
-		isHasSelectorSupported,
+		// Logged out users never see the reactions menu used to determine lock status. This would lead to false positives.
+		pageDetect.isLoggedIn,
 	],
 	include: [
 		pageDetect.isConversation,
